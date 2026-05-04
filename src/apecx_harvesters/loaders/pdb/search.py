@@ -203,6 +203,41 @@ class SearchQuery:
         )
 
 
+async def count(
+    query: SearchQuery | GroupQuery,
+    *,
+    client: httpx.AsyncClient | None = None,
+    rate_limiter: RateLimiter | None = None,
+) -> int:
+    """Return the total number of PDB entries matching *query* without fetching IDs."""
+    limiter = rate_limiter if rate_limiter is not None else RateLimiter(_default_rate_limit)
+    owned = client is None
+    if owned:
+        client = httpx.AsyncClient()
+    try:
+        payload = {
+            "return_type": "entry",
+            "query": query._to_node(),
+            "request_options": {"paginate": {"start": 0, "rows": 0}},
+        }
+        response = await _http_request(
+            client,
+            "POST",
+            _SEARCH_URL,
+            rate_limiter=limiter,
+            content=orjson.dumps(payload),
+            headers={"Content-Type": "application/json"},
+        )
+        response.raise_for_status()
+        if not response.content:
+            return 0
+        data = orjson.loads(response.content)
+        return int(data.get("total_count", 0))
+    finally:
+        if owned:
+            await client.aclose()
+
+
 async def search(
     query: SearchQuery | GroupQuery,
     *,

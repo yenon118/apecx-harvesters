@@ -144,6 +144,26 @@ async def _count(
     return int(result["count"])
 
 
+async def count(
+    term: str,
+    *,
+    client: httpx.AsyncClient | None = None,
+    rate_limiter: RateLimiter | None = None,
+    api_key: str | None = None,
+) -> int:
+    """Return the total PubMed result count for *term* without fetching any IDs."""
+    if rate_limiter is None:
+        rate_limiter = RateLimiter(_default_rate_limit)
+    owned = client is None
+    if owned:
+        client = httpx.AsyncClient()
+    try:
+        return await _count(term, client=client, rate_limiter=rate_limiter, api_key=api_key)
+    finally:
+        if owned:
+            await client.aclose()
+
+
 async def _fetch_ids(
     term: str,
     *,
