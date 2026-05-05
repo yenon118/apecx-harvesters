@@ -24,6 +24,7 @@ from apecx_harvesters.loaders.emdb import EMDBHarvester
 from apecx_harvesters.loaders.emdb.constants import rate_limit as _EMDB_RATE_LIMIT
 from apecx_harvesters.loaders.emdb.search import count as emdb_count
 from apecx_harvesters.loaders.emdb.search import search as emdb_search
+from apecx_harvesters.loaders.iedb import IEDBHarvester
 from apecx_harvesters.loaders.pdb import PDBHarvester
 from apecx_harvesters.loaders.pdb.constants import rate_limit as _PDB_RATE_LIMIT
 from apecx_harvesters.loaders.pdb.search import SearchQuery
@@ -65,10 +66,10 @@ async def _count_results(
 
 
 async def _run(
-    term: str,
-    begin_year: int | None,
-    end_year: int | None,
-    api_key: str | None,
+        term: str,
+        begin_year: int | None,
+        end_year: int | None,
+        api_key: str | None,
 ) -> None:
     if begin_year is not None or end_year is not None:
         start = begin_year or 1800
@@ -77,6 +78,10 @@ async def _run(
     else:
         pubmed_term = term
     pdb_query = SearchQuery.full_text(term)
+
+    logger.warning(pubmed_term)
+    logger.warning(pdb_query)
+    logger.warning(term)
 
     pubmed_rate = _PUBMED_RATE_LIMIT_WITH_KEY if api_key is not None else _PUBMED_RATE_LIMIT
     pubmed_limiter = RateLimiter(pubmed_rate, name="pubmed")
@@ -87,10 +92,13 @@ async def _run(
         pubmed = PubMedHarvester(client=client, rate_limiter=pubmed_limiter, api_key=api_key)
         pdb = PDBHarvester(client=client, rate_limiter=pdb_limiter)
         emdb = EMDBHarvester(client=client, rate_limiter=emdb_limiter)
+        iedb = IEDBHarvester(client=client)
 
         await run_parallel(
             PipelineSpec(
-                source=pubmed.iter_results(pubmed_search(pubmed_term, client=client, rate_limiter=pubmed_limiter, api_key=api_key)),
+                source=pubmed.iter_results(
+                    pubmed_search(pubmed_term, client=client, rate_limiter=pubmed_limiter, api_key=api_key)
+                ),
                 sink=report("pubmed"),
                 name="pubmed",
             ),
@@ -104,7 +112,13 @@ async def _run(
                 sink=report("emdb"),
                 name="emdb",
             ),
+            PipelineSpec(
+                source=iedb.iter_query_results(term),
+                sink=report("iedb"),
+                name="iedb",
+            ),
         )
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(

@@ -33,6 +33,7 @@ from typing import Any
 import apecx_harvesters.loaders  # noqa: F401  — register all harvester subclasses
 from apecx_harvesters.loaders.base import BaseHarvester
 from apecx_harvesters.loaders.emdb import EMDBHarvester
+from apecx_harvesters.loaders.iedb import IEDBHarvester
 from apecx_harvesters.loaders.pdb import PDBHarvester
 from apecx_harvesters.loaders.pubmed import PubMedHarvester
 from apecx_harvesters.pipeline import to_gmetalist
@@ -57,10 +58,10 @@ def _last_aggregation(output_root: Path) -> datetime.datetime | None:
 
 
 async def _aggregate(
-    harvester: BaseHarvester[Any],
-    output_dir: Path,
-    source: str,
-    since: datetime.datetime | None,
+        harvester: BaseHarvester[Any],
+        output_dir: Path,
+        source: str,
+        since: datetime.datetime | None,
 ) -> None:
     """Read new/updated records from cache and write Globus Search ingest chunks."""
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -82,6 +83,7 @@ async def _run(output_root: Path, cache_root: Path) -> None:
         (PubMedHarvester(cache_root=cache_root), "pubmed"),
         (PDBHarvester(cache_root=cache_root), "pdb"),
         (EMDBHarvester(cache_root=cache_root), "emdb"),
+        (IEDBHarvester(cache_root=cache_root), "iedb"),
     ]
 
     await asyncio.gather(

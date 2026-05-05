@@ -67,14 +67,18 @@ async def _count_results(
 
 
 async def _run(
-    author: str | None,
-    orcid: str | None,
-    institution: str | None,
-    api_key: str | None,
+        author: str | None,
+        orcid: str | None,
+        institution: str | None,
+        api_key: str | None,
 ) -> None:
     pdb_query = SearchQuery.by_author(author, orcid=orcid, institution=institution)
     pubmed_term = pubmed_author_term(author, orcid=orcid)
     emdb_term = emdb_author_term(author, orcid=orcid) if (author is not None or orcid is not None) else None
+
+    logger.warning(pdb_query)
+    logger.warning(pubmed_term)
+    logger.warning(emdb_term)
 
     pubmed_rate = _PUBMED_RATE_LIMIT_WITH_KEY if api_key is not None else _PUBMED_RATE_LIMIT
     pubmed_limiter = RateLimiter(pubmed_rate, name="pubmed")
@@ -88,7 +92,9 @@ async def _run(
 
         specs = [
             PipelineSpec(
-                source=pubmed.iter_results(pubmed_search(pubmed_term, client=client, rate_limiter=pubmed_limiter, api_key=api_key)),
+                source=pubmed.iter_results(
+                    pubmed_search(pubmed_term, client=client, rate_limiter=pubmed_limiter, api_key=api_key)
+                ),
                 sink=report("pubmed"),
                 name="pubmed",
             ),
